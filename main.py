@@ -144,51 +144,50 @@ class WakeProPlugin(Star):
         member = g.members[uid]
         now = time.time()
 
+        # 记录阻止原因，只有在会触发唤醒时才真正阻止事件传播
+        # Record blocking reason, only actually block event propagation if wake would be triggered
+        block_reason = None
+
         # 唤醒CD检查
         if now - member.last_wake < self.conf["wake_cd"]:
-            logger.debug(f"{uid} 处于唤醒CD中, 忽略此次唤醒")
-            event.stop_event()
-            return
+            logger.debug(f"{uid} 处于唤醒CD中, 记录阻止原因")
+            block_reason = "wake_cd"
 
         # 唤醒违禁词检查
-        if self.conf["wake_forbidden_words"]:
+        if not block_reason and self.conf["wake_forbidden_words"]:
             for word in self.conf["wake_forbidden_words"]:
                 if not event.is_admin() and word in event.message_str:
-                    logger.debug(f"{uid} 消息中含有唤醒屏蔽词, 忽略此次唤醒")
-                    event.stop_event()
-                    return
+                    logger.debug(f"{uid} 消息中含有唤醒屏蔽词, 记录阻止原因")
+                    block_reason = "forbidden_word"
+                    break
 
         # 屏蔽内置指令
-        if self.conf["block_builtin"]:
+        if not block_reason and self.conf["block_builtin"]:
             if not event.is_admin() and event.message_str in BUILT_CMDS:
-                logger.debug(f"{uid} 触发内置指令, 忽略此次唤醒")
-                event.stop_event()
-                return
+                logger.debug(f"{uid} 触发内置指令, 记录阻止原因")
+                block_reason = "builtin_cmd"
 
         # 闭嘴检查
-        if g.shutup_until > now:
-            logger.debug(f"Bot处于闭嘴中, 忽略此次{uid}的唤醒")
-            event.stop_event()
-            return
+        if not block_reason and g.shutup_until > now:
+            logger.debug(f"Bot处于闭嘴中, 记录阻止{uid}的原因")
+            block_reason = "shutup"
 
         # 沉默检查（辱骂/人机）
-        if not event.is_admin() and member.silence_until > now:
-            logger.debug(f"处于沉默中, 忽略此次{uid}的唤醒")
-            event.stop_event()
-            return
+        if not block_reason and not event.is_admin() and member.silence_until > now:
+            logger.debug(f"处于沉默中, 记录阻止{uid}的原因")
+            block_reason = "silence"
 
         # 复读屏蔽
-        if self.conf["block_reread"]:
+        if not block_reason and self.conf["block_reread"]:
             cleaned_msg = re.sub(r"[^\w\u4e00-\u9fff]", "", msg).lower()
             cleaned_bot_msgs = [
                 re.sub(r"[^\w\u4e00-\u9fff]", "", bmsg).lower() for bmsg in g.bot_msgs
             ]
             if cleaned_msg in cleaned_bot_msgs:
                 logger.debug(
-                    f"{uid} 发送了与Bot缓存消息相同的内容（忽略符号和空格），触发复读屏蔽"
+                    f"{uid} 发送了与Bot缓存消息相同的内容（忽略符号和空格），记录阻止原因"
                 )
-                event.stop_event()
-                return
+                block_reason = "reread"
 
         # 判断是否是指令
         cmd = msg.split(" ", 1)[0]
@@ -332,6 +331,13 @@ class WakeProPlugin(Star):
             wake = True
             reason = "prob"
             logger.debug(f"{uid} 触发概率唤醒")
+
+        # 应用阻止规则（只有在会触发唤醒时才真正阻止事件传播到其他插件）
+        # Apply blocking rules (only stop event if it would trigger wake)
+        if wake and block_reason:
+            logger.debug(f"{uid} 触发了唤醒但因 {block_reason} 被阻止")
+            event.stop_event()
+            return
 
         # 触发唤醒
         if wake:
