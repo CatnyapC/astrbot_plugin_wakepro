@@ -120,7 +120,7 @@ class WakeProPlugin(Star):
 
         # 只处理文本
         plains = [seg.text for seg in chain if isinstance(seg, Plain)]
-        plain = " ".join(plains)
+        plain = " ".join(plains).strip()
         if not plain:
             return
 
