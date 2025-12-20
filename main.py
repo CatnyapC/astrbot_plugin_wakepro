@@ -139,8 +139,20 @@ class WakeProPlugin(Star):
             event.stop_event()
             return
 
-        # 更新成员状态
+        # 更新成员状态（限制成员缓存数量）
         if uid not in g.members:
+            if len(g.members) >= self.conf["max_members_cache"]:
+                oldest_uid = min(
+                    g.members.items(),
+                    key=lambda item: max(
+                        item[1].last_wake,
+                        item[1].last_reply,
+                        item[1].silence_until,
+                    ),
+                )[0]
+                g.members.pop(oldest_uid, None)
+                logger.debug(f"[wakepro] 群({gid})裁剪成员缓存：{oldest_uid}")
+
             g.members[uid] = MemberState(uid=uid)
 
         member = g.members[uid]

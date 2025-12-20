@@ -197,5 +197,16 @@
             "step": 10
         },
         "default": 500
+    },
+    "max_members_cache": {
+        "description": "群聊中最大缓存人数",
+        "hint": "每个群最多缓存多少人的聊天记录，超过此人数时，最久未活跃的人将被清除",
+        "type": "int",
+        "slider": {
+            "min": 1,
+            "max": 50,
+            "step": 1
+        },
+        "default": 16
     }
 }
