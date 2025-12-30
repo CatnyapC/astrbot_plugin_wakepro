@@ -59,28 +59,34 @@ class Step:
 class Pipeline:
     """顺序执行流水线"""
 
-    def __init__(self, steps: list[Step]):
+    def __init__(self, steps: list[Step], admin_steps: list[str]):
         self.steps = steps
+        self.admin_steps = admin_steps
+
+    def admin_skip(self, step_name: str, is_admin: bool) -> bool:
+        if not self.admin_steps:
+            return False
+        return is_admin and step_name in self.admin_steps
 
     def run(self, ctx: WakeContext):
         for step in self.steps:
+            if self.admin_skip(step.name, ctx.is_admin):
+                continue
             ret = step.handler(ctx)
+            reason = getattr(ret.reason, "label", ret.reason)
             if ret.status == PhaseStatus.BLOCK:
                 ctx.event.stop_event()
-                logger.debug(
-                    f"{ctx.uid} 阻塞: {getattr(ret.reason, 'label', ret.reason)}"
-                )
+                logger.debug(f"{ctx.uid} 阻塞: {reason}")
+                break
             elif ret.status == PhaseStatus.WAKE:
                 ctx.member.last_wake = ctx.now
                 ctx.member.last_wake_reason = ret.reason
                 ctx.event.is_at_or_wake_command = True
-                logger.debug(
-                    f"{ctx.uid} 唤醒: {getattr(ret.reason, 'label', ret.reason)}"
-                )
+                logger.debug(f"{ctx.uid} 唤醒: {reason}")
+                break
             elif ret.status == PhaseStatus.SILENCE:
-                logger.debug(
-                    f"{ctx.uid} 沉默: {getattr(ret.reason, 'label', ret.reason)}"
-                )
+                logger.debug(f"{ctx.uid} 沉默: {reason}")
+                break
 
 
 # ============================================================
@@ -101,6 +107,9 @@ class WakePlugin(Star):
 
         self._enabled_steps: list[str] = [
             name.split("(", 1)[0].strip() for name in config["pipeline"]["steps"]
+        ]
+        self._admin_steps: list[str] = [
+            name.split("(", 1)[0].strip() for name in config["pipeline"]["admin_steps"]
         ]
         self.pipeline = self._build_pipeline()
 
@@ -133,7 +142,7 @@ class WakePlugin(Star):
                     raise ValueError(f"Unknown pipeline step: {name}")
                 steps.append(step)
 
-        return Pipeline(steps)
+        return Pipeline(steps, self._admin_steps)
 
     # ============================================================
     # Steps
@@ -141,17 +150,18 @@ class WakePlugin(Star):
 
     def _check_list(self, ctx: WakeContext) -> StepResult:
         """基础过滤"""
+        lconf = self.conf["list"]
         # 过滤自己
         if ctx.uid == ctx.bid:
             return StepResult(PhaseStatus.BLOCK, BlockReason.SELF)
         # 过滤群聊白名单
-        if ctx.gid not in self.conf.get("white_groups", []):
+        if len(lconf["white_groups"]) > 0 and ctx.gid not in lconf["white_groups"]:
             return StepResult(PhaseStatus.BLOCK, BlockReason.WHITE_GROUP)
         # 过滤群聊黑名单
-        if ctx.gid in self.conf.get("black_groups", []) and not ctx.is_admin:
+        if ctx.gid in lconf["black_groups"] and not ctx.is_admin:
             return StepResult(PhaseStatus.BLOCK, BlockReason.BLACK_GROUP)
         # 过滤用户黑名单
-        if ctx.uid in self.conf.get("user_blacklist", []):
+        if ctx.uid in lconf["black_users"]:
             return StepResult(PhaseStatus.BLOCK, BlockReason.BLACK_USER)
         return StepResult(PhaseStatus.PASS)
 
@@ -220,7 +230,7 @@ class WakePlugin(Star):
             wconf["prolong"] > 0
             and ctx.member.last_wake_reason
             in {WakeReason.AT, WakeReason.REPLY, WakeReason.MENTION}
-            and ctx.now - ctx.member.last_reply <= self.conf["prolong"]
+            and ctx.now - ctx.member.last_reply <= wconf["prolong"]
         ):
             return StepResult(PhaseStatus.WAKE, WakeReason.PROLONG)
         # 相关性唤醒
@@ -267,7 +277,6 @@ class WakePlugin(Star):
                 ctx.member.silence_until = ctx.now + th * sconf["multiple"]
                 return StepResult(PhaseStatus.SILENCE, BlockReason.AI)
         return StepResult(PhaseStatus.PASS)
-
 
     # ============================================================
     # Event Hooks

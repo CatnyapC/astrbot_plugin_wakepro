@@ -28,6 +28,24 @@
                     "wake(智能唤醒)",
                     "silence(沉默检测)"
                 ]
+            },
+            "admin_steps": {
+                "description": "对管理员无效的步骤",
+                "hint": "勾选后，该步骤对Bot管理员无效",
+                "type": "list",
+                "options": [
+                    "list(名单检查)",
+                    "block(多级阻塞)",
+                    "cmd(指令屏蔽)",
+                    "wake(智能唤醒)",
+                    "silence(沉默检测)"
+                ],
+                "default": [
+                    "list(名单检查)",
+                    "block(多级阻塞)",
+                    "cmd(指令屏蔽)",
+                    "silence(沉默检测)"
+                ]
             }
         }
     },
