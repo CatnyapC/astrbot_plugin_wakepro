@@ -6,7 +6,7 @@
         "items": {
             "lock_order": {
                 "description": "锁定顺序",
-                "hint": "锁定后将按内置顺序执行：名单检查 → 多级阻塞 → 指令屏蔽 → 智能唤醒 → 沉默检测",
+                "hint": "锁定后将按内置顺序执行：名单过滤 → 多级阻塞 → 指令屏蔽 → 智能唤醒 → 沉默检测",
                 "type": "bool",
                 "default": true
             },
@@ -15,14 +15,14 @@
                 "hint": "勾选表示启用该步骤；未锁定顺序时，将按当前列表顺序执行",
                 "type": "list",
                 "options": [
-                    "list(名单检查)",
+                    "list(名单过滤)",
                     "block(阻塞判断)",
                     "cmd(指令屏蔽)",
                     "wake(智能唤醒)",
                     "silence(沉默检测)"
                 ],
                 "default": [
-                    "list(名单检查)",
+                    "list(名单过滤)",
                     "block(阻塞判断)",
                     "cmd(指令屏蔽)",
                     "wake(智能唤醒)",
@@ -49,25 +49,43 @@
         }
     },
     "list": {
-        "description": "【名单检查】",
-        "hint": "",
+        "description": "【名单过滤】",
+        "hint": "注意检查顺序：屏蔽自身 -> 屏蔽机器人 -> 用户白名单 -> 群聊白名单 -> 用户黑名单 -> 群聊黑名单",
         "type": "object",
         "items": {
-            "white_groups": {
-                "description": "群聊白名单",
-                "hint": "仅在群聊白名单里的群启用本插件功能，不填表示所有群聊都启用",
+            "block_self": {
+                "description": "屏蔽Bot自身的消息",
+                "hint": "当 消息发送者ID 等于 Bot自身ID 时，消息将被屏蔽",
+                "type": "bool",
+                "default": false
+            },
+            "block_qqbot": {
+                "description": "屏蔽QQ机器人的消息",
+                "hint": "当 消息发送者ID 落在 QQ机器人ID范围 时，消息将被屏蔽。（仅QQ平台生效）",
+                "type": "bool",
+                "default": true
+            },
+            "white_users": {
+                "description": "用户白名单",
+                "hint": "填写后仅白名单里的用户能唤醒bot，不填则不检查",
                 "type": "list",
                 "default": []
             },
-            "black_groups": {
-                "description": "群聊黑名单",
-                "hint": "屏蔽黑名单中的群聊，该群消息无法唤醒bot",
+            "white_groups": {
+                "description": "群聊白名单",
+                "hint": "填写后仅白名单里的群聊能唤醒bot，不填则不检查",
                 "type": "list",
                 "default": []
             },
             "black_users": {
                 "description": "用户黑名单",
                 "hint": "屏蔽黑名单里的用户，使其全局无法唤醒bot",
+                "type": "list",
+                "default": []
+            },
+            "black_groups": {
+                "description": "群聊黑名单",
+                "hint": "屏蔽黑名单中的群聊，该群消息无法唤醒bot",
                 "type": "list",
                 "default": []
             }
@@ -384,7 +402,7 @@
         "type": "object",
         "items": {
             "builtin_cmds": {
-                "description": "要屏蔽的内置指令",
+                "description": "内置指令",
                 "hint": "定义哪些指令属于内置指令",
                 "type": "list",
                 "default": [
@@ -414,7 +432,7 @@
             },
             "block_builtin": {
                 "description": "禁止使用内置指令",
-                "hint": "内置指令即指Astrbot自带的命令，如help, tts, llm等，内置指令被屏蔽后不再会唤醒bot, 从而让你的bot更像真人",
+                "hint": "开启后，内置指令将无法唤醒bot,",
                 "type": "bool",
                 "default": false
             },
