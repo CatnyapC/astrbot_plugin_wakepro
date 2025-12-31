@@ -64,10 +64,13 @@ class BlockReason(str, Enum):
     """
     阻塞原因
     """
-    SELF="self"
+
+    SELF = "self"
+    QQBOT = "qqbot"
+    WHITE_USER = "white_user"
     WHITE_GROUP = "white_group"
-    BLACK_GROUP = "black_group"
     BLACK_USER = "black_user"
+    BLACK_GROUP = "black_group"
     WAKE_CD = "wake_cd"
     FORBIDDEN = "forbidden"
     BUILTIN = "builtin"
@@ -83,9 +86,11 @@ class BlockReason(str, Enum):
     def label(self) -> str:
         return {
             BlockReason.SELF: "自唤醒",
-            BlockReason.WHITE_GROUP: "非白名单群",
-            BlockReason.BLACK_GROUP: "黑名单群",
+            BlockReason.QQBOT: "屏蔽QQ机器人",
+            BlockReason.WHITE_USER: "非白名单用户",
+            BlockReason.WHITE_GROUP: "非白名单群聊",
             BlockReason.BLACK_USER: "黑名单用户",
+            BlockReason.BLACK_GROUP: "黑名单群聊",
             BlockReason.WAKE_CD: "唤醒冷却中",
             BlockReason.FORBIDDEN: "包含违禁词",
             BlockReason.BUILTIN: "内置指令拦截",

@@ -11,6 +11,9 @@ from astrbot.api.star import Context, Star
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.message.components import At, Plain, Reply
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
+from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
+    AiocqhttpMessageEvent,
+)
 
 from .core.interest import Interest
 from .core.model import (
@@ -23,7 +26,7 @@ from .core.model import (
 )
 from .core.sentiment import Sentiment
 from .core.similarity import Similarity
-from .core.utils import get_all_commands
+from .core.utils import get_all_commands, is_qqbot
 
 # ============================================================
 # Pipeline Core
@@ -83,7 +86,7 @@ class Pipeline:
                 ctx.member.last_wake_reason = ret.reason
                 ctx.event.is_at_or_wake_command = True
                 logger.debug(f"{ctx.uid} 唤醒: {reason}")
-                #break # 不阻塞，否则沉默逻辑失效
+                # break # 不阻塞，否则沉默逻辑失效
             elif ret.status == PhaseStatus.SILENCE:
                 logger.debug(f"{ctx.uid} 沉默: {reason}")
                 break
@@ -149,20 +152,30 @@ class WakePlugin(Star):
     # ============================================================
 
     def _check_list(self, ctx: WakeContext) -> StepResult:
-        """基础过滤"""
+        """名单过滤"""
         lconf = self.conf["list"]
         # 过滤自己
-        if ctx.uid == ctx.bid:
+        if lconf["block_self"] and ctx.uid == ctx.bid:
             return StepResult(PhaseStatus.BLOCK, BlockReason.SELF)
+        # 过滤QQ机器人
+        if (
+            lconf["block_qqbot"]
+            and isinstance(ctx.event, AiocqhttpMessageEvent)
+            and is_qqbot(ctx.uid)
+        ):
+            return StepResult(PhaseStatus.BLOCK, BlockReason.QQBOT)
+        # 过滤用户白名单
+        if len(lconf["white_users"]) > 0 and ctx.gid not in lconf["white_users"]:
+            return StepResult(PhaseStatus.BLOCK, BlockReason.WHITE_USER)
         # 过滤群聊白名单
         if len(lconf["white_groups"]) > 0 and ctx.gid not in lconf["white_groups"]:
             return StepResult(PhaseStatus.BLOCK, BlockReason.WHITE_GROUP)
-        # 过滤群聊黑名单
-        if ctx.gid in lconf["black_groups"]:
-            return StepResult(PhaseStatus.BLOCK, BlockReason.BLACK_GROUP)
         # 过滤用户黑名单
         if ctx.uid in lconf["black_users"]:
             return StepResult(PhaseStatus.BLOCK, BlockReason.BLACK_USER)
+        # 过滤群聊黑名单
+        if ctx.gid in lconf["black_groups"]:
+            return StepResult(PhaseStatus.BLOCK, BlockReason.BLACK_GROUP)
         return StepResult(PhaseStatus.PASS)
 
     def _check_block(self, ctx: WakeContext) -> StepResult:
@@ -297,9 +310,7 @@ class WakePlugin(Star):
         if not plain:
             return
         first_arg = event.message_str.split(" ", 1)[0]
-        cmd = (
-            first_arg if first_arg in self.commands else None
-        )
+        cmd = first_arg if first_arg in self.commands else None
         gid = event.get_group_id()
         uid = event.get_sender_id()
         bid = event.get_self_id()
