@@ -11,7 +11,7 @@ from .base import BaseStep
 
 
 class WakeStep(BaseStep):
-    name = StepName.GATE
+    name = StepName.WAKE
 
     def __init__(self, config: PluginConfig):
         super().__init__(config)

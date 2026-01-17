@@ -22,21 +22,22 @@ class SilenceStep(BaseStep):
             th = sentiment.shut(ctx.plain)
             if th > self.cfg.shutup:
                 seconds = self.cfg.multiple * th
-                ctx.group.shutup_until = seconds
+                ctx.group.shutup_until = ctx.now + seconds
                 return StepResult(abort=True, msg=f"触发群聊级闭嘴({seconds}秒)")
         # 辱骂沉默
         if self.cfg.insult < 1 and ctx.plain and ctx.member:
             th = sentiment.insult(ctx.plain)
             if th >self.cfg.insult:
-                seconds = ctx.now + th * self.cfg.multiple
-                ctx.member.silence_until = seconds
+                seconds = th * self.cfg.multiple
+                ctx.member.silence_until = ctx.now + seconds
                 return StepResult(abort=True, msg=f"触发用户级闭嘴({seconds}秒)")
         # 人机沉默
         if self.cfg.ai < 1 and ctx.plain and ctx.member:
             th = sentiment.is_ai(ctx.plain)
             if th > self.cfg.ai:
-                ctx.member.silence_until = ctx.now + th * self.cfg.multiple
-                return StepResult(abort=True, msg=f"触发人机级闭嘴({th}秒)")
+                seconds = th * self.cfg.multiple
+                ctx.member.silence_until = ctx.now + seconds
+                return StepResult(abort=True, msg=f"触发人机级闭嘴({seconds}秒)")
         return StepResult()
 
 
