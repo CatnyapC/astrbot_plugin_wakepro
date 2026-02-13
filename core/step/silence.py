@@ -27,7 +27,11 @@ class SilenceStep(BaseStep):
             if th > self.cfg.shutup:
                 seconds = self.cfg.multiple * th
                 ctx.group.shutup_until = ctx.now + seconds
-                return StepResult(abort=True, msg=f"触发群聊级闭嘴({seconds}秒)")
+                return StepResult(
+                    wake=False,
+                    abort=True,
+                    msg=f"触发群聊级闭嘴({seconds}秒)",
+                )
         # 辱骂沉默
         if self.cfg.insult < 1 and ctx.plain and ctx.member:
             th = sentiment.insult(ctx.plain)
@@ -43,5 +47,4 @@ class SilenceStep(BaseStep):
                 ctx.member.silence_until = ctx.now + seconds
                 return StepResult(abort=True, msg=f"触发人机级闭嘴({seconds}秒)")
         return StepResult()
-
 
